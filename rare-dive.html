@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rare Dive – Free Play</title>
+  <style>
+    :root {
+      --bg: #020b18;
+      --surface: #0a1a2f;
+      --border: #1a3a5c;
+      --accent: #00d4ff;
+      --accent2: #7b2cbf;
+      --text: #e0f7ff;
+      --muted: #7a9bb8;
+      --danger: #ff4d6d;
+      --success: #00f5a0;
+      --warning: #ffaa00;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+    .ocean {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(to bottom, #001a33 0%, #000d1a 45%, #000510 75%, #000 100%);
+      z-index: -2;
+    }
+    .depth-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center top, transparent 0%, rgba(0,0,0,0.55) 100%);
+      pointer-events: none;
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.7s;
+    }
+    .container { max-width: 520px; margin: 0 auto; padding: 1.25rem 1rem 3.5rem; }
+    header { text-align: center; padding: 1.75rem 0 1.25rem; }
+    .logo {
+      font-size: 2.1rem;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+      color: var(--accent);
+      text-shadow: 0 0 18px rgba(0,212,255,0.35);
+    }
+    .tagline { color: var(--muted); font-size: 0.9rem; margin-top: 0.35rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.35rem 1.2rem; }
+    .how-to { margin: 1.25rem 0; font-size: 0.9rem; }
+    .how-to li { margin: 0.35rem 0; color: var(--muted); }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent), #0099cc);
+      color: #001018;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 0.85rem 2rem;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 18px rgba(0,212,255,0.28);
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+    .btn.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+      box-shadow: none;
+      margin-left: 0.6rem;
+    }
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.1rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .prompt-card { text-align: center; margin-bottom: 1.2rem; position: relative; }
+    .prompt-label { font-size: 0.75rem; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 0.45rem; }
+    .prompt-text { font-size: 1.35rem; font-weight: 600; margin-bottom: 1.2rem; }
+    .timer {
+      font-size: 2.6rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      transition: color 0.25s;
+    }
+    .timer.warning { color: var(--warning); }
+    .timer.danger { color: var(--danger); animation: pulse 0.55s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+    .input-row { display: flex; gap: 0.5rem; margin-top: 1.1rem; }
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      background: #061525;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem 0.95rem;
+      color: var(--text);
+      font-size: 1.05rem;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    .submit-btn {
+      background: var(--accent);
+      color: #001018;
+      border: none;
+      border-radius: 10px;
+      padding: 0 1.25rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .feedback { margin-top: 0.85rem; min-height: 1.3rem; font-size: 0.92rem; }
+    .feedback.ok { color: var(--success); }
+    .feedback.bad { color: var(--danger); }
+    .depth-meter { margin-top: 1.1rem; }
+    .depth-stats { display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 0.4rem; }
+    .score-display { font-weight: 700; color: var(--accent); }
+    .depth-bar { height: 8px; background: #0d2137; border-radius: 4px; overflow: hidden; }
+    .depth-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width 0.7s ease-out;
+    }
+    .results-score { font-size: 3.2rem; font-weight: 800; color: var(--accent); text-align: center; margin: 0.6rem 0 0.2rem; }
+    .results-depth { text-align: center; color: var(--muted); font-size: 1.15rem; margin-bottom: 0.4rem; }
+    .zone-label { text-align: center; font-weight: 600; margin-bottom: 1.2rem; }
+    .tier-list { margin: 1rem 0; }
+    .tier-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 0.55rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      gap: 0.75rem;
+    }
+    .tier-item:last-child { border-bottom: none; }
+    .tier-item small { color: var(--muted); }
+    .tier-badge { font-weight: 600; padding: 0.12rem 0.45rem; border-radius: 4px; font-size: 0.78rem; white-space: nowrap; }
+    .t100 { background: #7b2cbf; color: #fff; }
+    .t85  { background: #3a0ca3; color: #fff; }
+    .t60  { background: #4361ee; color: #fff; }
+    .t30  { background: #4cc9f0; color: #001018; }
+    .t15  { background: #f72585; color: #fff; }
+    .t10  { background: #90e0ef; color: #001018; }
+    .t0   { background: #333; color: #aaa; }
+    .hidden { display: none !important; }
+    footer { text-align: center; margin-top: 2.5rem; color: var(--muted); font-size: 0.78rem; }
+    .dive-select { margin: 1rem 0; text-align: center; }
+    .dive-select select {
+      background: #061525;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="ocean"></div>
+  <div class="depth-overlay" id="depthOverlay"></div>
+  <div class="container">
+    <div id="startScreen">
+      <header>
+        <div class="logo">RARE DIVE</div>
+        <div class="tagline">rarer answers sink deeper · unlimited free play</div>
+      </header>
+      <div class="card how-to">
+        <ul>
+          <li>7 prompts · 25 seconds each</li>
+          <li>Name one thing that fits</li>
+          <li>Rarer valid answers score higher</li>
+          <li>Every point = 10 metres</li>
+          <li>700 = trench floor</li>
+          <li>Play as many times as you want</li>
+        </ul>
+      </div>
+      <div class="dive-select">
+        <label for="diveSelect" style="color:var(--muted);font-size:0.85rem">Choose dive:&nbsp;</label>
+        <select id="diveSelect">
+          <option value="featured">Featured (2026-11-17)</option>
+          <option value="sample">Sample Free Dive</option>
+        </select>
+      </div>
+      <div style="text-align:center">
+        <button class="btn" id="startBtn">▼ BEGIN DESCENT ▼</button>
+      </div>
+    </div>
+    <div id="gameScreen" class="hidden">
+      <div class="game-header">
+        <span>Prompt <span id="promptIndex">1</span>/7</span>
+        <span id="liveScore">0 pts</span>
+      </div>
+      <div class="card prompt-card">
+        <div class="prompt-label">NAME SOMETHING…</div>
+        <div class="prompt-text" id="promptText">—</div>
+        <div class="timer" id="timer">25</div>
+        <div class="input-row">
+          <input type="text" id="answerInput" placeholder="type your answer…" autocomplete="off" />
+          <button class="submit-btn" id="submitBtn">DIVE</button>
+        </div>
+        <div class="feedback" id="feedback"></div>
+      </div>
+      <div class="card depth-meter">
+        <div class="depth-stats">
+          <span>DEPTH</span>
+          <span class="score-display" id="depthDisplay">0m</span>
+        </div>
+        <div class="depth-bar"><div class="depth-fill" id="depthFill"></div></div>
+        <div class="depth-stats" style="margin-top:0.35rem"><span>SURFACE</span><span>TRENCH</span></div>
+      </div>
+    </div>
+    <div id="resultsScreen" class="hidden">
+      <header><div class="logo">RARE DIVE</div></header>
+      <div class="results-score" id="finalScore">0</div>
+      <div class="results-depth" id="finalDepth">0m</div>
+      <div class="zone-label" id="zoneLabel">SURFACE</div>
+      <div class="card tier-list" id="tierList"></div>
+      <div style="text-align:center;margin-top:1.4rem">
+        <button class="btn" id="playAgainBtn">Play again</button>
+        <button class="btn secondary" id="backHomeBtn">Home</button>
+      </div>
+    </div>
+  </div>
+  <footer>Original demo · Unlimited free play · Not affiliated with any commercial site</footer>
+  <script>
+    const DIVES = {
+      featured: {
+        diveId: "2026-11-17",
+        title: "Featured Dive",
+        prompts: [
+          { id: "p1", text: "a type of pasta", answers: {
+            "spaghetti": { display: "Spaghetti", tier: 10 }, "penne": { display: "Penne", tier: 10 },
+            "macaroni": { display: "Macaroni", tier: 15 }, "fettuccine": { display: "Fettuccine", tier: 30 },
+            "linguine": { display: "Linguine", tier: 30 }, "rigatoni": { display: "Rigatoni", tier: 60 },
+            "orecchiette": { display: "Orecchiette", tier: 85 }, "trofie": { display: "Trofie", tier: 100 },
+            "busiate": { display: "Busiate", tier: 100 }
+          }},
+          { id: "p2", text: "a board game", answers: {
+            "monopoly": { display: "Monopoly", tier: 10 }, "scrabble": { display: "Scrabble", tier: 10 },
+            "chess": { display: "Chess", tier: 15 }, "risk": { display: "Risk", tier: 30 },
+            "catan": { display: "Catan", tier: 60 }, "settlers of catan": { display: "Catan", tier: 60 },
+            "ticket to ride": { display: "Ticket to Ride", tier: 60 }, "wingspan": { display: "Wingspan", tier: 85 },
+            "gloomhaven": { display: "Gloomhaven", tier: 100 }, "ark nova": { display: "Ark Nova", tier: 100 }
+          }},
+          { id: "p3", text: "a programming language", answers: {
+            "python": { display: "Python", tier: 10 }, "javascript": { display: "JavaScript", tier: 10 },
+            "java": { display: "Java", tier: 15 }, "c++": { display: "C++", tier: 30 },
+            "c#": { display: "C#", tier: 30 }, "rust": { display: "Rust", tier: 60 },
+            "go": { display: "Go", tier: 60 }, "golang": { display: "Go", tier: 60 },
+            "haskell": { display: "Haskell", tier: 85 }, "elixir": { display: "Elixir", tier: 100 },
+            "nim": { display: "Nim", tier: 100 }
+          }},
+          { id: "p4", text: "a planet in our solar system", answers: {
+            "earth": { display: "Earth", tier: 10 }, "mars": { display: "Mars", tier: 10 },
+            "jupiter": { display: "Jupiter", tier: 15 }, "saturn": { display: "Saturn", tier: 15 },
+            "venus": { display: "Venus", tier: 30 }, "mercury": { display: "Mercury", tier: 30 },
+            "neptune": { display: "Neptune", tier: 60 }, "uranus": { display: "Uranus", tier: 60 },
+            "pluto": { display: "Pluto", tier: 85 }
+          }},
+          { id: "p5", text: "a famous painting", answers: {
+            "mona lisa": { display: "Mona Lisa", tier: 10 }, "starry night": { display: "Starry Night", tier: 15 },
+            "the scream": { display: "The Scream", tier: 30 }, "girl with a pearl earring": { display: "Girl with a Pearl Earring", tier: 60 },
+            "the persistence of memory": { display: "The Persistence of Memory", tier: 85 }, "guernica": { display: "Guernica", tier: 85 },
+            "the night watch": { display: "The Night Watch", tier: 100 }, "las meninas": { display: "Las Meninas", tier: 100 }
+          }},
+          { id: "p6", text: "a type of cloud", answers: {
+            "cumulus": { display: "Cumulus", tier: 10 }, "cirrus": { display: "Cirrus", tier: 30 },
+            "stratus": { display: "Stratus", tier: 30 }, "nimbus": { display: "Nimbus", tier: 60 },
+            "cumulonimbus": { display: "Cumulonimbus", tier: 60 }, "altocumulus": { display: "Altocumulus", tier: 85 },
+            "cirrostratus": { display: "Cirrostratus", tier: 100 }, "mammatus": { display: "Mammatus", tier: 100 }
+          }},
+          { id: "p7", text: "a mythical creature", answers: {
+            "dragon": { display: "Dragon", tier: 10 }, "unicorn": { display: "Unicorn", tier: 10 },
+            "phoenix": { display: "Phoenix", tier: 30 }, "griffin": { display: "Griffin", tier: 60 },
+            "gryphon": { display: "Griffin", tier: 60 }, "kraken": { display: "Kraken", tier: 60 },
+            "basilisk": { display: "Basilisk", tier: 85 }, "chimera": { display: "Chimera", tier: 85 },
+            "quetzalcoatl": { display: "Quetzalcoatl", tier: 100 }, "baku": { display: "Baku", tier: 100 }
+          }}
+        ]
+      },
+      sample: {
+        diveId: "sample",
+        title: "Sample Free Dive",
+        prompts: [
+          { id: "p1", text: "a hot drink", answers: {
+            "coffee": { display: "Coffee", tier: 10 }, "tea": { display: "Tea", tier: 10 },
+            "hot chocolate": { display: "Hot chocolate", tier: 15 }, "hot cocoa": { display: "Hot cocoa", tier: 15 },
+            "espresso": { display: "Espresso", tier: 30 }, "latte": { display: "Latte", tier: 30 },
+            "cappuccino": { display: "Cappuccino", tier: 30 }, "matcha": { display: "Matcha", tier: 60 },
+            "chai": { display: "Chai", tier: 60 }, "yerba mate": { display: "Yerba mate", tier: 85 },
+            "mate": { display: "Mate", tier: 85 }, "chicory": { display: "Chicory", tier: 100 },
+            "butter tea": { display: "Butter tea", tier: 100 }
+          }},
+          { id: "p2", text: "a variety of wine", answers: {
+            "red": { display: "Red", tier: 10 }, "white": { display: "White", tier: 10 },
+            "rose": { display: "Rosé", tier: 15 }, "cabernet": { display: "Cabernet", tier: 15 },
+            "merlot": { display: "Merlot", tier: 15 }, "chardonnay": { display: "Chardonnay", tier: 30 },
+            "pinot noir": { display: "Pinot noir", tier: 60 }, "sauvignon blanc": { display: "Sauvignon blanc", tier: 60 },
+            "riesling": { display: "Riesling", tier: 85 }, "tempranillo": { display: "Tempranillo", tier: 85 },
+            "gruner veltliner": { display: "Grüner Veltliner", tier: 100 }, "nebbiolo": { display: "Nebbiolo", tier: 100 }
+          }},
+          { id: "p3", text: "a hotel brand", answers: {
+            "marriott": { display: "Marriott", tier: 10 }, "hilton": { display: "Hilton", tier: 10 },
+            "holiday inn": { display: "Holiday Inn", tier: 15 }, "hyatt": { display: "Hyatt", tier: 30 },
+            "sheraton": { display: "Sheraton", tier: 30 }, "ritz carlton": { display: "Ritz-Carlton", tier: 60 },
+            "four seasons": { display: "Four Seasons", tier: 60 }, "mandarin oriental": { display: "Mandarin Oriental", tier: 85 },
+            "aman": { display: "Aman", tier: 100 }, "six senses": { display: "Six Senses", tier: 100 }
+          }},
+          { id: "p4", text: "an item of winter clothing", answers: {
+            "coat": { display: "Coat", tier: 10 }, "jacket": { display: "Jacket", tier: 10 },
+            "scarf": { display: "Scarf", tier: 15 }, "gloves": { display: "Gloves", tier: 15 },
+            "beanie": { display: "Beanie", tier: 30 }, "parka": { display: "Parka", tier: 60 },
+            "puffer": { display: "Puffer", tier: 60 }, "thermal": { display: "Thermal", tier: 85 },
+            "balaclava": { display: "Balaclava", tier: 85 }, "mukluks": { display: "Mukluks", tier: 100 },
+            "ushanka": { display: "Ushanka", tier: 100 }
+          }},
+          { id: "p5", text: "a citrus fruit", answers: {
+            "orange": { display: "Orange", tier: 10 }, "lemon": { display: "Lemon", tier: 10 },
+            "lime": { display: "Lime", tier: 15 }, "grapefruit": { display: "Grapefruit", tier: 30 },
+            "tangerine": { display: "Tangerine", tier: 60 }, "clementine": { display: "Clementine", tier: 60 },
+            "yuzu": { display: "Yuzu", tier: 85 }, "bergamot": { display: "Bergamot", tier: 85 },
+            "buddhas hand": { display: "Buddha's hand", tier: 100 }, "buddha's hand": { display: "Buddha's hand", tier: 100 },
+            "kaffir lime": { display: "Kaffir lime", tier: 100 }
+          }},
+          { id: "p6", text: "a country with \"and\" in its name", answers: {
+            "trinidad and tobago": { display: "Trinidad and Tobago", tier: 30 },
+            "antigua and barbuda": { display: "Antigua and Barbuda", tier: 60 },
+            "bosnia and herzegovina": { display: "Bosnia and Herzegovina", tier: 60 },
+            "saint kitts and nevis": { display: "Saint Kitts and Nevis", tier: 85 },
+            "sao tome and principe": { display: "São Tomé and Príncipe", tier: 100 }
+          }},
+          { id: "p7", text: "a deep-sea creature", answers: {
+            "shark": { display: "Shark", tier: 10 }, "whale": { display: "Whale", tier: 10 },
+            "octopus": { display: "Octopus", tier: 15 }, "squid": { display: "Squid", tier: 15 },
+            "anglerfish": { display: "Anglerfish", tier: 60 }, "giant squid": { display: "Giant squid", tier: 85 },
+            "colossal squid": { display: "Colossal squid", tier: 85 }, "vampire squid": { display: "Vampire squid", tier: 100 },
+            "dumbo octopus": { display: "Dumbo octopus", tier: 100 }
+          }}
+        ]
+      }
+    };
+
+    let currentDive = null;
+    let promptIndex = 0;
+    let score = 0;
+    let answersLog = [];
+    let timerId = null;
+    let timeLeft = 25;
+    let locked = false;
+    const $ = (id) => document.getElementById(id);
+
+    function normalize(str) {
+      return String(str || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[àáâãäå]/g, "a")
+        .replace(/[èéêë]/g, "e")
+        .replace(/[ìíîï]/g, "i")
+        .replace(/[òóôõö]/g, "o")
+        .replace(/[ùúûü]/g, "u")
+        .replace(/ñ/g, "n")
+        .replace(/[^\w\s'-]/g, "")
+        .replace(/\s+/g, " ");
+    }
+    function tierName(pts) {
+      const m = { 100: "One in a Krillion", 85: "Deep Cut", 60: "Rare", 30: "Schooler", 15: "Too Clever", 10: "Plankton" };
+      return m[pts] || "Missed";
+    }
+    function getZone(depth) {
+      if (depth >= 6000) return "HADAL ZONE · Trench floor";
+      if (depth >= 4000) return "ABYSSAL ZONE";
+      if (depth >= 1000) return "MIDNIGHT ZONE";
+      if (depth >= 200) return "TWILIGHT ZONE";
+      return "SUNLIT ZONE · Surface";
+    }
+    function updateDepthUI() {
+      const depth = score * 10;
+      $("depthDisplay").textContent = depth + "m";
+      $("liveScore").textContent = score + " pts";
+      $("depthFill").style.width = Math.min(100, (score / 700) * 100) + "%";
+      $("depthOverlay").style.opacity = Math.min(0.85, (score / 700) * 0.9);
+    }
+    function startTimer() {
+      timeLeft = 25;
+      $("timer").textContent = timeLeft;
+      $("timer").className = "timer";
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        timeLeft--;
+        $("timer").textContent = timeLeft;
+        if (timeLeft <= 8) $("timer").className = "timer danger";
+        else if (timeLeft <= 15) $("timer").className = "timer warning";
+        if (timeLeft <= 0) {
+          clearInterval(timerId);
+          submit(true);
+        }
+      }, 1000);
+    }
+    function loadPrompt() {
+      if (promptIndex >= currentDive.prompts.length) {
+        showResults();
+        return;
+      }
+      const p = currentDive.prompts[promptIndex];
+      $("promptText").textContent = p.text;
+      $("promptIndex").textContent = promptIndex + 1;
+      $("answerInput").value = "";
+      $("feedback").textContent = "";
+      $("feedback").className = "feedback";
+      locked = false;
+      $("answerInput").focus();
+      startTimer();
+    }
+    function submit(isTimeout = false) {
+      if (locked) return;
+      locked = true;
+      clearInterval(timerId);
+      const p = currentDive.prompts[promptIndex];
+      let points = 0;
+      let display = "—";
+      let tName = "Missed";
+      if (!isTimeout) {
+        const key = normalize($("answerInput").value);
+        const match = p.answers[key];
+        if (match) {
+          points = match.tier;
+          display = match.display;
+          tName = tierName(points);
+          $("feedback").textContent = `+${points} · ${tName}`;
+          $("feedback").className = "feedback ok";
+        } else {
+          $("feedback").textContent = "no echo";
+          $("feedback").className = "feedback bad";
+        }
+      } else {
+        $("feedback").textContent = "time's up";
+        $("feedback").className = "feedback bad";
+      }
+      score += points;
+      answersLog.push({ prompt: p.text, answer: display, points, tName });
+      updateDepthUI();
+      setTimeout(() => { promptIndex++; loadPrompt(); }, 1100);
+    }
+    function showResults() {
+      clearInterval(timerId);
+      $("gameScreen").classList.add("hidden");
+      $("resultsScreen").classList.remove("hidden");
+      $("finalScore").textContent = score;
+      $("finalDepth").textContent = (score * 10) + "m";
+      $("zoneLabel").textContent = getZone(score * 10);
+      $("tierList").innerHTML = answersLog.map(a => `
+        <div class="tier-item">
+          <span>${a.prompt}<br><small>${a.answer}</small></span>
+          <span class="tier-badge t${a.points}">${a.points}</span>
+        </div>
+      `).join("");
+    }
+    function startGame() {
+      const key = $("diveSelect").value;
+      currentDive = DIVES[key];
+      promptIndex = 0;
+      score = 0;
+      answersLog = [];
+      updateDepthUI();
+      $("startScreen").classList.add("hidden");
+      $("resultsScreen").classList.add("hidden");
+      $("gameScreen").classList.remove("hidden");
+      loadPrompt();
+    }
+    $("startBtn").addEventListener("click", startGame);
+    $("submitBtn").addEventListener("click", () => submit(false));
+    $("answerInput").addEventListener("keydown", e => { if (e.key === "Enter") submit(false); });
+    $("playAgainBtn").addEventListener("click", startGame);
+    $("backHomeBtn").addEventListener("click", () => {
+      clearInterval(timerId);
+      $("resultsScreen").classList.add("hidden");
+      $("startScreen").classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>
